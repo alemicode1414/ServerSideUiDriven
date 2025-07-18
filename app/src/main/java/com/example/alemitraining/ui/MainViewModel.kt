@@ -21,7 +21,7 @@ class MerchantViewModel @Inject constructor(
     private val merchantDetailsRepository: MerchantRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow<UiState<String>>(UiState.Failure(RuntimeException()))
+    private val _uiState = MutableStateFlow<UiState<String>>(UiState.Loading)
     val uiState = _uiState.asStateFlow()
     val merchantId = savedStateHandle.getStateFlow("12", "").value
 
@@ -29,22 +29,31 @@ class MerchantViewModel @Inject constructor(
 //        getMerchantDetails()
 //    }
 
-    suspend fun getMerchantDetails() {
+    fun getMerchantDetails() = viewModelScope.launch {
+        _uiState.value = UiState.Failure(RuntimeException())
 
-        _uiState.value = UiState.Success("12")
+        merchantDetailsRepository.getMerchantDetails(merchantId).safeFold(
+            onSuccess = {
+                val pager = productPagerFlow(pageBody = it.pageBody.toPageBody())
+                _uiState.value = UiState.Success("2")
+            },
+            onFailure = {
+                _uiState.value = UiState.Failure(it)
+            }
+        )
 
     }
 
-//    private fun productPagerFlow(
-//        pageBody: PageBody
-//    ) = Pager(
-//        config = PagingConfig(pageSize = 10),
-//        pagingSourceFactory = {
-//            MerchantPagingSource(
-//                pageBody = pageBody,
-//                merchantId = merchantId,
-//                repository = merchantDetailsRepository
-//            )
-//        }
-//    ).flow
+    private fun productPagerFlow(
+        pageBody: PageBody
+    ) = Pager(
+        config = PagingConfig(pageSize = 10),
+        pagingSourceFactory = {
+            MerchantPagingSource(
+                pageBody = pageBody,
+                merchantId = merchantId,
+                repository = merchantDetailsRepository
+            )
+        }
+    ).flow
 }
